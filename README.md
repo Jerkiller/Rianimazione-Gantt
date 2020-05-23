@@ -7,3 +7,6 @@ I tried to use online gantt sites, but no-one are hour-based. I had to work hard
 
 I needed to overwrite some Google Charts features like sample colors and adding lines.
 For this reason I used MutationObserver to override google redraws.
+
+## Live Demo
+You can see a live demo from [here](https://htmlpreview.github.io/?https://github.com/Jerkiller/Rianimazione-Gantt/blob/master/index.html).
