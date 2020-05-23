@@ -1,0 +1,71 @@
+body {
+    margin: 0;
+}
+
+h1 {
+    font-family: "Roboto", Arial, sans-serif;
+    text-align: center;
+}
+
+#chart_time {
+    width: calc(100vw - 20px);
+    height: 70px;
+    position: sticky;
+    top: 0;
+    background-color: white;
+    z-index: 100000;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+    outline: none;
+}
+
+.high-left {
+    float: left;
+    position: absolute;
+    top: 15px;
+    left: 10px;
+}
+
+label {
+    font-family: "Roboto", Arial, sans-serif;
+}
+
+input[type="text"] {
+    font: 15px/24px "Roboto", Arial, sans-serif;
+    color: #333;
+    width: 100%;
+    box-sizing: border-box;
+    letter-spacing: 1px;
+}
+
+.effect-2 {
+    text-align: center;
+    width: 60px;
+    border: 0;
+    padding: 7px 0;
+    border-bottom: 1px solid #ccc;
+}
+
+.effect-2~.focus-border {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background-color: #4caf50;
+    transition: 0.4s;
+}
+
+.effect-2:focus~.focus-border {
+    width: 100%;
+    transition: 0.4s;
+    left: 0;
+}

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto">
+    <link rel="stylesheet" href="style.css">
+    <script src="jquery-3.5.1.min.js"></script>
+    <script src="moment.min.js"></script>
+    <script src="activities.js"></script>
+    <script src="loader.js"></script>
+    <script src="colors.js"></script>
+    <script>
+        google.charts.load('current', {
+            'packages': ['gantt']
+        });
+        var chart;
+        
+        google.charts.setOnLoadCallback(drawChart);
+        $( window ).resize(function() {
+            drawChart();
+        });
+        function drawChart() {
+            chart = new google.visualization.Gantt(document.getElementById('chart_div'));
+            emptyTimeLabels();
+            let patients = $("#patients").val();
+            //console.log("patients",patients);
+            const day1 = "2020-01-01";
+            const day2 = "2020-01-02";
+            let rows = getGanttActivities(day1,day2,patients);
+            //console.log(rows);
+            chart.draw(getGanttData(rows), getGanttOptions(rows));
+            google.visualization.events.addListener(chart, 'ready', onGanttReady);
+        }
+        
+        function getGanttData(rows){
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'Task ID');
+            data.addColumn('string', 'Task Name');
+            data.addColumn('string', 'Resource');
+            data.addColumn('date', 'Start Date');
+            data.addColumn('date', 'End Date');
+            data.addColumn('number', 'Duration');
+            data.addColumn('number', 'Percent Complete');
+            data.addColumn('string', 'Dependencies');
+            data.addRows(rows);
+            /*
+            var data = new google.visualization.DataTable({
+                cols: [
+                {id: 'Task ID', label: 'Task ID', type: 'string'},
+                {id: 'Task Name', label: 'Task Name', type: 'string'},
+                {id: 'Resource', label: 'Resource', type: 'string'},
+                {id: 'Start Date', label: 'Start Date', type: 'date'},
+                {id: 'End Date', label: 'End Date', type: 'date'},
+                {id: 'Duration', label: 'Duration', type: 'number'},
+                {id: 'Percent Complete', label: 'Percent Complete', type: 'number'},
+                {id: 'Dependencies', label: 'Dependencies', type: 'string'}
+                ],
+                
+                rows: rows.map(c => {
+                    return {'c': c.map(v => {
+                        return {'v': v}
+                    })}
+                })
+            });
+            //console.log("data",data);*/
+            return data;
+        }
+        
+        function getGanttOptions(rows) {
+            let labelMaxWidth = $("html").width() < 800 ? $("html").width() * 0.3 : 500;
+            //console.log("label",labelMaxWidth)
+            return {
+                width: $("html").width() - 20,
+                height: 20 * rows.length + 100,
+                gantt: {
+                    barHeight: 15,
+                    trackHeight: 20,
+                    labelMaxWidth: labelMaxWidth,
+                    labelStyle: {
+                        fontName: "Roboto",
+                        fontSize: 14,
+                        color: '#757575'
+                    }
+                }
+            };
+        }
+        
+        function onGanttReady(e) {
+            addTimeLabels();
+            addGridLines();
+            addShiftsLines();
+            changeColors();
+            // overwrite google nazi behaviour
+            observeDOM(document.querySelectorAll(`svg`)[1], changeColors);
+        }
+        
+        function addTimeLabels() {
+            let $timeSvg = $("#chart_time").find("svg");
+            $timeSvg.width($("#chart_div").find("svg").width());
+            $timeSvg.append($("#chart_div").find("svg").find("text[fill=black]").clone());
+            $timeSvg.find("text").attr("y",30);
+            $timeSvg.find("text:contains(M)").attr("y",50);
+        }
+        function emptyTimeLabels() {
+            let $timeSvg = $("#chart_time").find("svg");
+            $timeSvg.empty();
+        }
+
+        
+        function addShiftsLines(){
+            let shiftChanges = [7,14,21];
+            let $timeSvg = $("#chart_time").find("svg");
+            let $svg = $("#chart_div").find("svg");
+            // 8 10 12 2 4 6 8 10 12 2 4 6 8
+            // 6 12 6 12
+            let timeTicks = $timeSvg.find("text:not(:contains(M))").map((i,e)=>{
+                return {
+                    index: i,
+                    x: $(e).attr("x"),
+                    hour: $(e).text()
+                };
+            }).get();
+            // AM PM AM
+            let amsPms = $timeSvg.find("text:contains(M)").map((i,e)=>{
+                return {
+                    index: i,
+                    x: $(e).attr("x"),
+                    text: $(e).text()
+                };
+            }).get();
+
+            amsPms.map((e,i)=> {
+                let pos = timeTicks.map(f => f.x).indexOf(`${e.x}`);
+                timeTicks[pos].ampm = e.text;
+            });
+            
+            for (let i = 0; i < timeTicks.length; i++) {
+                // fill am pm gaps
+                if(timeTicks[i].ampm == null) {
+                    timeTicks[i].ampm = timeTicks[i-1].ampm;
+                }
+                // fix hours according to am pm
+                timeTicks[i].hour = 
+                    timeTicks[i].ampm === " AM" ?
+                    parseInt(timeTicks[i].hour) :
+                    parseInt(timeTicks[i].hour) + 12;
+                // parseFloat for x
+                timeTicks[i].x = parseFloat(timeTicks[i].x);
+            }
+
+
+            console.log(timeTicks);
+
+            let hourGap = timeTicks[1].hour - timeTicks[0].hour;
+            let pixelGap = timeTicks[1].x - timeTicks[0].x;
+            let pixelPerHour = pixelGap / hourGap;
+            let firstHour = timeTicks[0].hour;
+            let firstPixel = timeTicks[0].x;
+            
+            console.log(
+                "hourGap", hourGap,
+                "pixelGap", pixelGap,
+                "pixelPerHour", pixelPerHour,
+                "firstHour", firstHour,
+                "firstPixel", firstPixel
+            );
+
+            // sweat and tears, now add lines...
+
+            let shiftLines = shiftChanges.map((hour,i) => {
+                let x = firstPixel + pixelPerHour * (hour - firstHour);
+                console.log(hour,i,x)
+                return getLine({
+                    id: `line_${x}`,
+                    x1: x, y1: 0,
+                    x2: x, y2: $svg.height() - 100,
+                    stroke: "#999999",
+                    strokeWidth: 1
+                });
+            });
+
+            shiftLines.forEach(line => {
+                $svg.find("g:nth-of-type(5)").append(line);
+            });
+        }
+
+        function addGridLines() {
+            let $timeSvg = $("#chart_time").find("svg");
+            let $svg = $("#chart_div").find("svg");
+            $timeSvg.find("text:not(:contains(M))").each((i,e)=>{
+                //console.log($(e).attr("x"), $(e).text())
+                let x = $(e).attr("x");
+                let line1 = getLine({
+                    id: `line_${x}`,
+                    x1: x, y1: 0,
+                    x2: x, y2: $svg.height() - 100,
+                    stroke: "#dddddd",
+                    strokeWidth: 1
+                });
+                $svg.find("g:nth-of-type(5)").append(line1);
+            })
+        }
+        
+        
+        function getLine(line){
+            var newLine = document.createElementNS('http://www.w3.org/2000/svg','line');
+            newLine.setAttribute('id',`${line.id}`);
+            newLine.setAttribute('x1',`${line.x1}`);
+            newLine.setAttribute('y1',`${line.y1}`);
+            newLine.setAttribute('x2',`${line.x2}`);
+            newLine.setAttribute('y2',`${line.y2}`);
+            newLine.setAttribute('stroke',`${line.stroke}`);
+            newLine.setAttribute('stroke-width',`${line.strokeWidth}`);
+            return newLine;
+        }
+        
+    </script>
+</head>
+<body>
+    <h1>Gantt reparto rianimazione</h1>
+    <div id="chart_time">
+        <div class="high-left">
+            <label for="patients">Pazienti:</label>
+            <input class="effect-2" id="patients" type="number" value="6" onchange="drawChart();">
+            <span class="focus-border"></span>
+        </div>
+        <svg></svg>
+    </div>
+    <div id="chart_div"></div>
+    
+</body>
+</html>
+<!-- https://gist.github.com/steveosoule/ec6dcb7dac5f7ba824f087ef3c903a1c -->
